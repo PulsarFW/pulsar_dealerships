@@ -12,18 +12,14 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Install zip
-        run: sudo apt install zip
-
       - name: Get latest code
         uses: actions/checkout@v4
 
       - name: Bundle files
         run: |
-          mkdir -p ./temp/pulsar-dealerships
-          cp ./{README.md,fxmanifest.lua,native_dlc.json,sandbox_rp_dealership_vehicles.json} ./temp/pulsar-dealerships
-          cp -r ./{client,server,config,shared} ./temp/pulsar-dealerships
-          cd ./temp && zip -r ../pulsar-dealerships.zip ./pulsar-dealerships
+          mkdir -p staging/pulsar-dealerships
+          rsync -a --exclude='.github' --exclude='node_modules' --exclude='staging' . staging/pulsar-dealerships/
+          cd staging && zip -r ../pulsar-dealerships.zip pulsar-dealerships/
 
       - name: Create release
         uses: softprops/action-gh-release@v2
