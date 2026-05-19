@@ -100,7 +100,12 @@ function CreateBikeStandBlips()
 	end
 end
 
-AddEventHandler("BikeStands:Client:Open", function(entityData, data)
+AddEventHandler("BikeStands:Client:Open", function(arg1, arg2)
+	local data = (type(arg2) == 'table' and arg2) or arg1
+	if not data or not data.location then
+		return
+	end
+	
 	if _justBoughtBike[data.location] then
 		return exports["pulsar-hud"]:Notification("error", "You Just Bought a Bike off Me! Weirdo!")
 	end
