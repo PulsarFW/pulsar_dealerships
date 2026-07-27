@@ -70,7 +70,7 @@ _bikeStandAvailable = {
 function CreateBikeStands()
 	for k, v in ipairs(_bikeStands) do
 		if v.interactionPed then
-			exports['pulsar-pedinteraction']:Add(
+			plsr.PedInteraction:Add(
 				"bike_stand_" .. k,
 				v.interactionPed.model,
 				v.coords,
@@ -94,15 +94,14 @@ end
 function CreateBikeStandBlips()
 	for k, v in ipairs(_bikeStands) do
 		if v.blip then
-			exports["pulsar-blips"]:Add("bike_stand_" .. k, "Bicycle Stand", v.coords, v.blip.sprite, v.blip.color,
-				v.blip.scale)
+			plsr.Blips:Add("bike_stand_" .. k, "Bicycle Stand", v.coords, v.blip.sprite, v.blip.color, v.blip.scale)
 		end
 	end
 end
 
 AddEventHandler("BikeStands:Client:Open", function(entityData, data)
 	if _justBoughtBike[data.location] then
-		return exports["pulsar-hud"]:Notification("error", "You Just Bought a Bike off Me! Weirdo!")
+		return plsr.Notification:Error("You Just Bought a Bike off Me! Weirdo!")
 	end
 
 	local menuData = {
@@ -121,7 +120,7 @@ AddEventHandler("BikeStands:Client:Open", function(entityData, data)
 		})
 	end
 
-	exports['pulsar-hud']:ListMenuShow(menuData)
+	plsr.ListMenu:Show(menuData)
 end)
 
 AddEventHandler("BikeStands:Client:Purchase", function(data)
@@ -132,7 +131,7 @@ AddEventHandler("BikeStands:Client:Purchase", function(data)
 			return
 		end
 
-		exports["pulsar-core"]:ServerCallback("BikeStand:Purchase", {
+		plsr.Callbacks:ServerCallback("BikeStand:Purchase", {
 			name = bikeData.name,
 			vehicleHash = bikeData.model,
 			price = bikeData.price,
@@ -141,11 +140,9 @@ AddEventHandler("BikeStands:Client:Purchase", function(data)
 		}, function(success)
 			if success then
 				_justBoughtBike[data.location] = true
-				exports["pulsar-hud"]:Notification("success",
-					string.format("Purchased %s, It Has Been Brought out for You.",
-						bikeData.name))
+				plsr.Notification:Success(string.format("Purchased %s, It Has Been Brought out for You.", bikeData.name))
 			else
-				exports["pulsar-hud"]:Notification("error", "Purchase Failed")
+				plsr.Notification:Error("Purchase Failed")
 			end
 		end)
 	end

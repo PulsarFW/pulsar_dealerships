@@ -37,11 +37,11 @@ end
 
 function OpenCatalog(dealerId)
 	if not catalogMenuOpen then
-		exports['pulsar-hud']:Hide()
+		plsr.Hud:Hide()
 
 		DoScreenFadeOut(250)
 
-		exports["pulsar-core"]:ServerCallback("Dealerships:GetDealerStock", dealerId, function(stocks)
+		plsr.Callbacks:ServerCallback("Dealerships:GetDealerStock", dealerId, function(stocks)
 			catalogData = FormatDealerStockToCategories(stocks)
 
 			SetupCatalogCams()
@@ -59,12 +59,12 @@ end
 function SetCatalogVehicle(veh)
 	if not veh or (veh and GetEntityModel(catalogVeh) ~= GetHashKey(veh)) then -- Delete the vehicle
 		if catalogVeh and DoesEntityExist(catalogVeh) then
-			exports['pulsar-core']:GameVehiclesDelete(catalogVeh)
+			plsr.Game.Vehicles:Delete(catalogVeh)
 			catalogVeh = false
 		end
 
 		if veh then
-			exports['pulsar-core']:GameVehiclesSpawnLocal(_catalog.vehicle.xyz, veh, _catalog.vehicle.w, function(veh)
+			plsr.Game.Vehicles:SpawnLocal(_catalog.vehicle.xyz, veh, _catalog.vehicle.w, function(veh)
 				catalogVeh = veh
 
 				table.insert(allSpawnedCatalogVehicles, veh)
@@ -97,7 +97,7 @@ function GetVehicleDealerCarInformationText(vData)
 end
 
 function OpenCatalogMenu(catalogName)
-	catalogMenu = exports['pulsar-menu']:Create("dealerCatalog", catalogName .. " Vehicle Catalog", function()
+	catalogMenu = plsr.Menu:Create("dealerCatalog", catalogName .. " Vehicle Catalog", function()
 		catalogMenuOpen = true
 	end, function()
 		DestroyCatalogCams()
@@ -106,13 +106,13 @@ function OpenCatalogMenu(catalogName)
 
 		for k, v in ipairs(allSpawnedCatalogVehicles) do
 			if DoesEntityExist(v) then
-				exports['pulsar-core']:GameVehiclesDelete(v)
+				plsr.Game.Vehicles:Delete(v)
 			end
 		end
 
 		allSpawnedCatalogVehicles = {}
 
-		exports['pulsar-hud']:Show()
+		plsr.Hud:Show()
 		Wait(250)
 		catalogData = {}
 		catalogMenu = nil
@@ -122,7 +122,7 @@ function OpenCatalogMenu(catalogName)
 		catalogMenuOpen = false
 	end)
 
-	local orderedCategories = exports['pulsar-core']:UtilsGetTableKeys(_catalogCategories)
+	local orderedCategories = plsr.Utils:GetTableKeys(_catalogCategories)
 	table.sort(orderedCategories, function(a, b)
 		return _catalogCategories[a] < _catalogCategories[b]
 	end)
@@ -139,7 +139,7 @@ function OpenCatalogMenu(catalogName)
 				SetCatalogVehicle(catalogData.sorted[catalogCurrent][1].vehicle)
 			end
 
-			catalogSubMenus[cat] = exports['pulsar-menu']:Create(
+			catalogSubMenus[cat] = plsr.Menu:Create(
 				"dealerCatalogSub-" .. cat,
 				catalogName .. " Catalog - " .. _catalogCategories[cat] .. " Vehicles"
 			)

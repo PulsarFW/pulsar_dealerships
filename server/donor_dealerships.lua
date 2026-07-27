@@ -1,27 +1,27 @@
 function RegisterDonorVehicleSaleCallbacks()
-  exports["pulsar-core"]:RegisterServerCallback("Dealerships:DonorSales:GetStock", function(source, data, cb)
-    local plyr = exports['pulsar-core']:FetchSource(source)
+  plsr.Callbacks:RegisterServerCallback("Dealerships:DonorSales:GetStock", function(source, data, cb)
+    local plyr = plsr.Fetch:Source(source)
     if plyr and _donorDealerships[data] then
-      local pending = exports['pulsar-dealerships']:DonatorGetPending(plyr:GetData("Identifier"))
-
+      local pending = plsr.Dealerships.Donator:GetPending(plyr:GetData("Identifier"))
+      
       if pending and #pending > 0 then
         local filtered = {}
         local allowedClasses = {}
         local classList = {}
-
+        
         for k, v in ipairs(pending) do
           allowedClasses[v.class] = true
           table.insert(classList, v.class)
         end
 
-        local dealerData = exports['pulsar-dealerships']:StockFetchDealer(_donorDealerships[data].availableVehicles)
-
+        local dealerData = plsr.Dealerships.Stock:FetchDealer(_donorDealerships[data].availableVehicles)
+  
         for k, v in ipairs(dealerData) do
           if allowedClasses[v.data.class] and (not _donorDealerships[data].flags.depleteStockOnPurchase or v.quantity > 0) then
             table.insert(filtered, v)
           end
         end
-
+  
         cb({
           stock = filtered,
           classDisplay = table.concat(classList, ", ")
@@ -33,16 +33,16 @@ function RegisterDonorVehicleSaleCallbacks()
     cb(false)
   end)
 
-  exports["pulsar-core"]:RegisterServerCallback("Dealerships:DonorSales:GetPending", function(source, data, cb)
-    local plyr = exports['pulsar-core']:FetchSource(source)
+  plsr.Callbacks:RegisterServerCallback("Dealerships:DonorSales:GetPending", function(source, data, cb)
+    local plyr = plsr.Fetch:Source(source)
     if plyr then
-      local pending = exports['pulsar-dealerships']:DonatorGetPending(plyr:GetData("Identifier"), true)
+      local pending = plsr.Dealerships.Donator:GetPending(plyr:GetData("Identifier"), true)
       local mainMenuItems = {}
       for k, v in ipairs(pending) do
         if not v.redeemed then
           table.insert(mainMenuItems, {
             label = string.format("%s Class Vehicle", v.class),
-            description = string.format("UID: %s", v._id),
+            description = string.format("UID: %s", v._id), 
             disabled = v.redeemed,
           })
         end
@@ -52,7 +52,7 @@ function RegisterDonorVehicleSaleCallbacks()
         if v.redeemed then
           table.insert(mainMenuItems, {
             label = string.format("%s Class Vehicle", v.class),
-            description = string.format("UID: %s", v._id),
+            description = string.format("UID: %s", v._id), 
             disabled = v.redeemed,
           })
         end
@@ -70,21 +70,21 @@ function RegisterDonorVehicleSaleCallbacks()
     cb(false)
   end)
 
-  exports["pulsar-core"]:RegisterServerCallback("Dealerships:DonorSales:Purchase", function(source, data, cb)
+  plsr.Callbacks:RegisterServerCallback("Dealerships:DonorSales:Purchase", function(source, data, cb)
     if data?.dealer and data?.vehicle and _donorDealerships[data.dealer] then
-      local plyr = exports['pulsar-core']:FetchSource(source)
+      local plyr = plsr.Fetch:Source(source)
       if plyr then
-        local char = exports['pulsar-characters']:FetchCharacterSource(source)
+        local char = plsr.Fetch:CharacterSource(source)
         local hostDealer = _donorDealerships[data.dealer].availableVehicles
         local dealerData = _dealerships[hostDealer]
 
         if char and hostDealer then
-          local profitPercent = exports['pulsar-dealerships']:ManagementGetData(hostDealer, 'profitPercentage')
-          local commissionPercent = exports['pulsar-dealerships']:ManagementGetData(hostDealer, 'commission')
-          local saleVehicleData = exports['pulsar-dealerships']:StockFetchDealerVehicle(hostDealer, data.vehicle)
+          local profitPercent = plsr.Dealerships.Management:GetData(hostDealer, 'profitPercentage')
+          local commissionPercent = plsr.Dealerships.Management:GetData(hostDealer, 'commission')
+          local saleVehicleData = plsr.Dealerships.Stock:FetchDealerVehicle(hostDealer, data.vehicle)
 
           if profitPercent and commissionPercent and saleVehicleData and saleVehicleData.quantity > 0 and saleVehicleData.data.price and saleVehicleData.data.price > 0 then
-            local donatorStuff = exports['pulsar-dealerships']:DonatorGetPending(plyr:GetData("Identifier"))
+            local donatorStuff = plsr.Dealerships.Donator:GetPending(plyr:GetData("Identifier"))
 
             local allowedClasses = {}
             for k, v in ipairs(donatorStuff) do
@@ -95,15 +95,14 @@ function RegisterDonorVehicleSaleCallbacks()
               local vehiclePrice = saleVehicleData.data.price
               local priceMultiplier = 1 + (profitPercent / 100)
               local commissionMultiplier = (commissionPercent / 100)
-              local salePrice = exports['pulsar-core']:UtilsRound(vehiclePrice * priceMultiplier, 0)
-
-              local playerCommission = exports['pulsar-core']:UtilsRound(
-                (salePrice - vehiclePrice) * commissionMultiplier, 0)
-              local dealerRecieves = exports['pulsar-core']:UtilsRound(salePrice - playerCommission, 0)
-
+              local salePrice = plsr.Utils:Round(vehiclePrice * priceMultiplier, 0)
+  
+              local playerCommission = plsr.Utils:Round((salePrice - vehiclePrice) * commissionMultiplier, 0)
+              local dealerRecieves = plsr.Utils:Round(salePrice - playerCommission, 0)
+  
               local removeSuccess = nil
               if _donorDealerships[data.dealer].flags.depleteStockOnPurchase then
-                removeSuccess = exports['pulsar-dealerships']:StockRemove(hostDealer, saleVehicleData.vehicle, 1)
+                removeSuccess = plsr.Dealerships.Stock:Remove(hostDealer, saleVehicleData.vehicle, 1)
               else
                 removeSuccess = saleVehicleData.quantity
               end
@@ -115,85 +114,84 @@ function RegisterDonorVehicleSaleCallbacks()
                 end
               end
 
-              local revokeToken = exports['pulsar-dealerships']:DonatorRemovePending(plyr:GetData("Identifier"),
-                removeId)
+              local revokeToken = plsr.Dealerships.Donator:RemovePending(plyr:GetData("Identifier"), removeId)
+  
               if removeSuccess and revokeToken then
-                exports['pulsar-vehicles']:OwnedAddToCharacter(char:GetData('SID'), GetHashKey(saleVehicleData.vehicle),
-                  0,
-                  saleVehicleData.modelType, {
-                    make = saleVehicleData.data.make,
-                    model = saleVehicleData.data.model,
-                    class = saleVehicleData.data.class,
-                    value = salePrice,
-                    donatorFlag = true,
-                  }, function(success, vehicleData)
-                    if success and vehicleData then
-                      if _donorDealerships[data.dealer].flags.depleteStockOnPurchase then
-                        exports['pulsar-dealerships']:RecordsCreate(hostDealer, {
-                          time = os.time(),
-                          type = "full",
-                          vehicle = {
-                            VIN = vehicleData.VIN,
-                            vehicle = saleVehicleData.vehicle,
-                            data = saleVehicleData.data,
-                          },
-                          profitPercent = profitPercent,
-                          salePrice = salePrice,
-                          dealerProfits = 0, --dealerRecieves,
-                          commission = 0,
-                          buyer = {
-                            ID = char:GetData('ID'),
-                            SID = char:GetData('SID'),
-                            First = char:GetData('First'),
-                            Last = char:GetData('Last'),
-                          },
-                          newQuantity = removeSuccess,
-                        })
+                plsr.Vehicles.Owned:AddToCharacter(char:GetData('SID'), GetHashKey(saleVehicleData.vehicle), 0, saleVehicleData.modelType, { 
+                  make = saleVehicleData.data.make,
+                  model = saleVehicleData.data.model,
+                  class = saleVehicleData.data.class,
+                  value = salePrice,
+                  donatorFlag = true,
+                }, function(success, vehicleData)
+                  if success and vehicleData then
 
-                        SendDealerProfits(dealerData, 100, false, 0, saleVehicleData.data, {
+                    if _donorDealerships[data.dealer].flags.depleteStockOnPurchase then
+                      plsr.Dealerships.Records:Create(hostDealer, {
+                        time = os.time(),
+                        type = "full",
+                        vehicle = {
+                          VIN = vehicleData.VIN,
+                          vehicle = saleVehicleData.vehicle,
+                          data = saleVehicleData.data,
+                        },
+                        profitPercent = profitPercent,
+                        salePrice = salePrice,
+                        dealerProfits = 0, --dealerRecieves,
+                        commission = 0,
+                        buyer = {
+                          ID = char:GetData('ID'),
                           SID = char:GetData('SID'),
                           First = char:GetData('First'),
                           Last = char:GetData('Last'),
-                          Source = source,
-                        })
-                      end
+                        },
+                        newQuantity = removeSuccess,
+                      })
 
-                      SendCompletedCashSaleEmail({
+                      SendDealerProfits(dealerData, 100, false, 0, saleVehicleData.data, {
                         SID = char:GetData('SID'),
                         First = char:GetData('First'),
                         Last = char:GetData('Last'),
                         Source = source,
-                      }, dealerData, saleVehicleData.data, salePrice, vehicleData.VIN, vehicleData.RegisteredPlate)
-
-                      cb(true)
-
-                      exports['pulsar-core']:LoggerWarn(
-                        "Donator",
-                        string.format(
-                          "%s [%s] Redeemed %s Class Donator Vehicle - Character %s %s (%s) - Vehicle %s %s",
-                          plyr:GetData("Name"),
-                          plyr:GetData("AccountID"),
-                          saleVehicleData.data.class,
-                          char:GetData('First'),
-                          char:GetData('Last'),
-                          char:GetData('SID'),
-                          saleVehicleData.data.make,
-                          saleVehicleData.data.model
-                        ),
-                        {
-                          console = true,
-                          file = false,
-                          database = true,
-                          discord = {
-                            embed = true,
-                            type = "error",
-                            webhook = GetConvar("discord_donation_webhook", ''),
-                          }
-                        }
-                      )
-                      return
+                      })
                     end
-                  end, false, _donorDealerships[data.dealer].storage)
+
+                    SendCompletedCashSaleEmail({
+                      SID = char:GetData('SID'),
+                      First = char:GetData('First'),
+                      Last = char:GetData('Last'),
+                      Source = source,
+                    }, dealerData, saleVehicleData.data, salePrice, vehicleData.VIN, vehicleData.RegisteredPlate)
+                    
+                    cb(true)
+
+                    plsr.Logger:Warn(
+                      "Donator",
+                      string.format(
+                        "%s [%s] Redeemed %s Class Donator Vehicle - Character %s %s (%s) - Vehicle %s %s", 
+                        plyr:GetData("Name"),
+                        plyr:GetData("AccountID"),
+                        saleVehicleData.data.class,
+                        char:GetData('First'),
+                        char:GetData('Last'),
+                        char:GetData('SID'),
+                        saleVehicleData.data.make,
+                        saleVehicleData.data.model
+                      ),
+                      {
+                        console = true,
+                        file = false,
+                        database = true,
+                        discord = {
+                          embed = true,
+                          type = "error",
+                          webhook = GetConvar("discord_donation_webhook", ''),
+                        }
+                      }
+                    )
+                    return
+                  end
+                end, false, _donorDealerships[data.dealer].storage)
               end
             end
           end
@@ -204,15 +202,15 @@ function RegisterDonorVehicleSaleCallbacks()
     cb(false)
   end)
 
-  exports["pulsar-chat"]:RegisterAdminCommand("adddonatorvehicle", function(source, args, rawCommand)
+  plsr.Chat:RegisterAdminCommand("adddonatorvehicle", function(source, args, rawCommand)
     local license, class = table.unpack(args)
 
     if license and class then
-      local success = exports['pulsar-dealerships']:DonatorAddPending(license, class)
+      local success = plsr.Dealerships.Donator:AddPending(license, class)
       if success then
-        exports["pulsar-chat"]:SendSystemSingle(source, "Successfully Added Donator Token")
+        plsr.Chat.Send.System:Single(source, "Successfully Added Donator Token")
       else
-        exports["pulsar-chat"]:SendSystemSingle(source, "Failed")
+        plsr.Chat.Send.System:Single(source, "Failed")
       end
     end
   end, {
@@ -229,20 +227,19 @@ function RegisterDonorVehicleSaleCallbacks()
     },
   }, 2)
 
-  exports["pulsar-chat"]:RegisterAdminCommand("getdonatorvehicle", function(source, args, rawCommand)
+  plsr.Chat:RegisterAdminCommand("getdonatorvehicle", function(source, args, rawCommand)
     local license = table.unpack(args)
 
     if license then
-      local res = exports['pulsar-dealerships']:DonatorGetPending(license, true)
+      local res = plsr.Dealerships.Donator:GetPending(license, true)
       if res then
         local message = string.format("Player Identifier: %s<br>", license)
         for k, v in ipairs(res) do
-          message = message ..
-              string.format("<br>ID: %s<br>Class: %s<br>Redeemed: %s<br>", v._id, v.class, v.redeemed and "Yes" or "No")
+          message = message .. string.format("<br>ID: %s<br>Class: %s<br>Redeemed: %s<br>", v._id, v.class, v.redeemed and "Yes" or "No")
         end
-        exports["pulsar-chat"]:SendSystemSingle(source, message)
+        plsr.Chat.Send.System:Single(source, message)
       else
-        exports["pulsar-chat"]:SendSystemSingle(source, "Failed")
+        plsr.Chat.Send.System:Single(source, "Failed")
       end
     end
   end, {
@@ -255,15 +252,15 @@ function RegisterDonorVehicleSaleCallbacks()
     },
   }, 1)
 
-  exports["pulsar-chat"]:RegisterAdminCommand("removedonatorvehicle", function(source, args, rawCommand)
+  plsr.Chat:RegisterAdminCommand("removedonatorvehicle", function(source, args, rawCommand)
     local license, tokenId = table.unpack(args)
 
     if license and tokenId then
-      local success = exports['pulsar-dealerships']:DonatorDeletePending(license, tokenId)
+      local success = plsr.Dealerships.Donator:DeletePending(license, tokenId)
       if success then
-        exports["pulsar-chat"]:SendSystemSingle(source, "Successfully Removed")
+        plsr.Chat.Send.System:Single(source, "Successfully Removed")
       else
-        exports["pulsar-chat"]:SendSystemSingle(source, "Failed")
+        plsr.Chat.Send.System:Single(source, "Failed")
       end
     end
   end, {
@@ -281,109 +278,145 @@ function RegisterDonorVehicleSaleCallbacks()
   }, 2)
 end
 
-exports('DonatorAddPending', function(playerIdentifier, class, data)
-  local p = promise.new()
-  local dataJson = data and json.encode(data) or nil
-
-  exports.oxmysql:execute(
-    'INSERT INTO donator_vehicles (player, class, redeemed, data) VALUES (?, ?, ?, ?)',
-    { playerIdentifier, class, false, dataJson },
-    function(insertId)
-      p:resolve(insertId and insertId > 0)
-    end)
-
-  return Citizen.Await(p)
-end)
-
-exports('DonatorGetPending', function(playerIdentifier, includeRedeemed)
-  local p = promise.new()
-
-  local query = 'SELECT * FROM donator_vehicles WHERE player = ?'
-  local params = { playerIdentifier }
-
-  if not includeRedeemed then
-    query = query .. ' AND redeemed = ?'
-    table.insert(params, false)
-  end
-
-  exports.oxmysql:execute(query, params, function(results)
-    if results and #results > 0 then
-      for k, v in ipairs(results) do
-        if v.data then
-          v.data = json.decode(v.data)
-        end
-      end
-      p:resolve(results)
-    else
-      p:resolve({})
+local _donatorVehiclesTableReady = false
+local function ensureDonatorVehiclesTable(callback)
+  if _donatorVehiclesTableReady then
+    if callback then
+      callback()
     end
-  end)
+    return
+  end
+  plsr.Database:Query(
+    "CREATE TABLE IF NOT EXISTS `donator_vehicles` (`id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, `player` VARCHAR(191) NOT NULL, `class` VARCHAR(191) NULL, `redeemed` TINYINT(1) NOT NULL DEFAULT 0, `data` JSON NULL, INDEX `idx_player` (`player`), INDEX `idx_player_redeemed` (`player`, `redeemed`))",
+    nil,
+    function()
+      _donatorVehiclesTableReady = true
+      if callback then
+        callback()
+      end
+    end
+  )
+end
 
-  return Citizen.Await(p)
-end)
-
-exports('DonatorRemovePending', function(playerIdentifier, id)
-  local p = promise.new()
-
-  exports.oxmysql:execute(
-    'UPDATE donator_vehicles SET redeemed = ? WHERE player = ? AND id = ?',
-    { true, playerIdentifier, id },
-    function(affectedRows)
-      p:resolve(affectedRows and affectedRows > 0)
+DEALERSHIPS.Donator = {
+  AddPending = function(self, playerIdentifier, class, data)
+    local p = promise.new()
+    ensureDonatorVehiclesTable(function()
+      plsr.Database:Insert(
+        "INSERT INTO `donator_vehicles` (`player`, `class`, `redeemed`, `data`) VALUES (?, ?, 0, ?)",
+        { playerIdentifier, class, data and json.encode(data) or nil },
+        function(success, newId)
+          p:resolve(success and newId ~= nil)
+        end
+      )
     end)
 
-  return Citizen.Await(p)
-end)
+    return Citizen.Await(p)
+  end,
+  GetPending = function(self, playerIdentifier, includeRedeemed)
+    local p = promise.new()
 
-exports('DonatorDeletePending', function(playerIdentifier, id)
-  local p = promise.new()
+    local sql = "SELECT `id`, `player`, `class`, `redeemed`, `data` FROM `donator_vehicles` WHERE `player` = ?"
+    if not includeRedeemed then
+      sql = sql .. " AND `redeemed` = 0"
+    end
 
-  exports.oxmysql:execute(
-    'DELETE FROM donator_vehicles WHERE player = ? AND id = ?',
-    { playerIdentifier, id },
-    function(affectedRows)
-      p:resolve(affectedRows and affectedRows > 0)
+    ensureDonatorVehiclesTable(function()
+      plsr.Database:Query(sql, { playerIdentifier }, function(success, results)
+        if success and #results > 0 then
+          local vehicles = {}
+          for k, row in ipairs(results) do
+            local decoded = nil
+            if row.data then
+              local ok, d = pcall(json.decode, row.data)
+              if ok then
+                decoded = d
+              end
+            end
+            table.insert(vehicles, {
+              _id = row.id,
+              player = row.player,
+              class = row.class,
+              redeemed = row.redeemed == 1,
+              data = decoded,
+            })
+          end
+          p:resolve(vehicles)
+        else
+          p:resolve({})
+        end
+      end)
     end)
 
-  return Citizen.Await(p)
-end)
+    return Citizen.Await(p)
+  end,
+  RemovePending = function(self, playerIdentifier, id)
+    local p = promise.new()
+
+    ensureDonatorVehiclesTable(function()
+      plsr.Database:Update(
+        "UPDATE `donator_vehicles` SET `redeemed` = 1 WHERE `player` = ? AND `id` = ?",
+        { playerIdentifier, id },
+        function(success)
+          p:resolve(success)
+        end
+      )
+    end)
+
+    return Citizen.Await(p)
+  end,
+  DeletePending = function(self, playerIdentifier, id)
+    local p = promise.new()
+
+    ensureDonatorVehiclesTable(function()
+      plsr.Database:Update(
+        "DELETE FROM `donator_vehicles` WHERE `player` = ? AND `id` = ?",
+        { playerIdentifier, id },
+        function(success)
+          p:resolve(success)
+        end
+      )
+    end)
+
+    return Citizen.Await(p)
+  end
+}
 
 AddEventHandler("DonorDealer:Server:AddCarToPlayer", function(identifier, class)
-  exports['pulsar-dealerships']:DonatorAddPending(identifier, class)
+  plsr.Dealerships.Donator:AddPending(identifier, class)
 end)
 
 function TebexAddDonatorVehicle(source, args)
-  local sid, class = table.unpack(args)
-  sid = tonumber(sid)
-  if sid == nil or sid == 0 then
-    exports['pulsar-core']:LoggerWarn(
-      "Donator Vehicle",
-      "Provided SID (server ID) was empty.",
-      {
-        console = true,
-        file = false,
-        database = true,
-        discord = {
-          embed = true,
-          type = "error",
-          webhook = GetConvar("discord_donation_webhook", ''),
-        }
-      }
-    )
-    return
-  end
-  local player = exports['pulsar-core']:FetchSource(sid)
-  if player then
-    local license = player:GetData("Identifier")
-    if license and class then
-      local success = exports['pulsar-dealerships']:DonatorAddPending(license, class)
-      if success then
-        exports["pulsar-chat"]:SendSystemSingle(sid, "Successfully Added Donator Token")
-      else
-        exports["pulsar-chat"]:SendSystemSingle(sid, "Failed")
-      end
-    end
-  end
+	local sid, class = table.unpack(args)
+	sid = tonumber(sid)
+	if sid == nil or sid == 0 then
+        plsr.Logger:Warn(
+			"Donator Vehicle",
+			"Provided SID (server ID) was empty.",
+			{
+				console = true,
+				file = false,
+				database = true,
+				discord = {
+					embed = true,
+					type = "error",
+					webhook = GetConvar("discord_donation_webhook", ''),
+				}
+			}
+		)
+		return
+	end
+	local player = plsr.Fetch:Source(sid)
+	if player then
+		local license = player:GetData("Identifier")
+		if license and class then
+			local success = plsr.Dealerships.Donator:AddPending(license, class)
+			if success then
+				plsr.Chat.Send.System:Single(sid, "Successfully Added Donator Token")
+			else
+				plsr.Chat.Send.System:Single(sid, "Failed")
+			end
+		end
+	end  
 end
-
 RegisterCommand("tebexadddonatorvehicle", TebexAddDonatorVehicle, true)

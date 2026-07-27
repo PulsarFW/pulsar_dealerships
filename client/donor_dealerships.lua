@@ -1,39 +1,38 @@
 function CreateDonorDealerships()
   for k, v in ipairs(_donorDealerships) do
-    exports['pulsar-pedinteraction']:Add("donor_dealer_" .. k, v.ped.model, v.ped.location.xyz, v.ped.location.w, 50.0,
+    plsr.PedInteraction:Add("donor_dealer_" .. k, v.ped.model, v.ped.location.xyz, v.ped.location.w, 50.0, {
       {
-        {
-          icon = "car-side",
-          text = "Donator Vehicle Purchases",
-          event = "DonorDealer:Client:Open",
-          data = { id = k },
-        },
-        {
-          icon = "receipt",
-          text = "View Unredeemed Purchases",
-          event = "DonorDealer:Client:ViewPending",
-          data = { id = k },
-        },
-      }, "comment-dollar", v.ped.scenario)
+        icon = "car-side",
+        text = "Donator Vehicle Purchases",
+        event = "DonorDealer:Client:Open",
+        data = { id = k },
+      },
+      {
+        icon = "receipt",
+        text = "View Unredeemed Purchases",
+        event = "DonorDealer:Client:ViewPending",
+        data = { id = k },
+      },
+    }, "comment-dollar", v.ped.scenario)
   end
 end
 
-AddEventHandler("DonorDealer:Client:ViewPending", function(data)
-  exports["pulsar-core"]:ServerCallback("Dealerships:DonorSales:GetPending", {}, function(menu)
-    exports['pulsar-hud']:ListMenuShow(menu)
+AddEventHandler("DonorDealer:Client:ViewPending", function(entityData, data)
+  plsr.Callbacks:ServerCallback("Dealerships:DonorSales:GetPending", {}, function(menu)
+    plsr.ListMenu:Show(menu)
   end)
 end)
 
-AddEventHandler("DonorDealer:Client:Open", function(data)
+AddEventHandler("DonorDealer:Client:Open", function(entityData, data)
   local dealer = data.id
-  exports["pulsar-core"]:ServerCallback("Dealerships:DonorSales:GetStock", dealer, function(data)
+  plsr.Callbacks:ServerCallback("Dealerships:DonorSales:GetStock", dealer, function(data)
     if not data then
-      return exports["pulsar-hud"]:Notification("error", "No Pending Donator Purchases to Redeem")
+      return plsr.Notification:Error("No Pending Donator Purchases to Redeem")
     end
 
     local fData = FormatDealerStockToCategories(data.stock)
-
-    local orderedCategories = exports['pulsar-core']:UtilsGetTableKeys(_catalogCategories)
+  
+    local orderedCategories = plsr.Utils:GetTableKeys(_catalogCategories)
     table.sort(orderedCategories, function(a, b)
       return _catalogCategories[a] < _catalogCategories[b]
     end)
@@ -55,7 +54,7 @@ AddEventHandler("DonorDealer:Client:Open", function(data)
         })
 
         local sItems = {}
-
+  
         for k, v in ipairs(fData.sorted[cat]) do
           table.insert(sItems, {
             label = string.format("%s %s", v.make, v.model),
@@ -70,7 +69,7 @@ AddEventHandler("DonorDealer:Client:Open", function(data)
             }
           })
         end
-
+  
         menu[cat] = {
           label = _catalogCategories[cat],
           items = sItems
@@ -83,12 +82,12 @@ AddEventHandler("DonorDealer:Client:Open", function(data)
       items = mainMenuItems,
     }
 
-    exports['pulsar-hud']:ListMenuShow(menu)
+    plsr.ListMenu:Show(menu)
   end)
 end)
 
 AddEventHandler("DonorDealer:Client:StartPurchase", function(data)
-  exports['pulsar-hud']:ConfirmShow(
+  plsr.Confirm:Show(
     "Confirm Donator Vehicle Purchase",
     {
       yes = "DonorDealer:Client:ConfirmPurchase",
@@ -111,5 +110,5 @@ AddEventHandler("DonorDealer:Client:StartPurchase", function(data)
 end)
 
 AddEventHandler("DonorDealer:Client:ConfirmPurchase", function(data)
-  exports["pulsar-core"]:ServerCallback("Dealerships:DonorSales:Purchase", data)
+  plsr.Callbacks:ServerCallback("Dealerships:DonorSales:Purchase", data)
 end)

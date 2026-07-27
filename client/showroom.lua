@@ -9,14 +9,14 @@ function SpawnShowroom(id)
         local spawnVehicles = {}
         for slot, data in pairs(GlobalState.DealershipShowrooms[id]) do
             local spawnPoint = _dealerships[id].showroom[tonumber(slot)]
-            exports['pulsar-core']:GameVehiclesSpawnLocal(spawnPoint.xyz, data.vehicle, spawnPoint.w, function(veh)
+            plsr.Game.Vehicles:SpawnLocal(spawnPoint.xyz, data.vehicle, spawnPoint.w, function(veh)
                 if not SHOWROOM_CACHE[id] then
                     SHOWROOM_CACHE[id] = {}
                 end
 
                 SHOWROOM_CACHE[id][slot] = veh
 
-                exports['pulsar-vehicles']:PropertiesSet(veh, data.properties)
+                plsr.Vehicles.Properties:Set(veh, data.properties)
 
                 FreezeEntityPosition(veh, true)
                 SetVehicleDoorsLocked(veh, 2)
@@ -34,7 +34,7 @@ end
 function DeleteShowroom(id)
     if SHOWROOM_CACHE[id] then
         for k, v in pairs(SHOWROOM_CACHE[id]) do
-            exports['pulsar-core']:GameVehiclesDelete(v)
+            plsr.Game.Vehicles:Delete(v)
         end
         SHOWROOM_CACHE[id] = nil
     end

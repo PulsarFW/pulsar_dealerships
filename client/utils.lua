@@ -20,7 +20,7 @@ function IsParkingSpaceFree(spaceCoords)
 	return GetClosestVehicleWithinRadius(spaceCoords.xyz, 2.0) == false
 end
 
--- Because the normal one doesn't work
+-- GetClosestVehicle native doesn't support a radius filter, hence this custom version
 function GetClosestVehicleWithinRadius(coords, radius)
 	if not radius then
 		radius = 5.0

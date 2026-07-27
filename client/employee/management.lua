@@ -10,7 +10,7 @@ AddEventHandler('Dealerships:Client:StartManagement', function(hit, data)
 end)
 
 function OpenDealerManagementMenu(dealer)
-    exports["pulsar-core"]:ServerCallback('Dealerships:GetDealershipData', { dealerId = dealer }, function(data)
+    plsr.Callbacks:ServerCallback('Dealerships:GetDealershipData', { dealerId = dealer }, function(data)
         local dealerData = _dealerships[dealer]
         if not data or not dealerData then
             return
@@ -19,14 +19,13 @@ function OpenDealerManagementMenu(dealer)
         manageMenuSub = {}
         updatingData = {}
 
-        manageMenu = exports['pulsar-menu']:Create('dmanageMenu',
-            string.format('Manage %s', dealerData.abbreviation), function()
+        manageMenu = plsr.Menu:Create('dmanageMenu', string.format('Manage %s', dealerData.abbreviation), function()
 
-            end, function()
-                manageMenu = nil
-                manageMenuSub = nil
-                collectgarbage()
-            end)
+        end, function()
+            manageMenu = nil
+            manageMenuSub = nil
+            collectgarbage()
+        end)
 
         manageMenu.Add:Slider('Dealership Profit %', {
             current = data.profitPercentage,
@@ -49,14 +48,14 @@ function OpenDealerManagementMenu(dealer)
         manageMenu.Add:Button('Save Changes', { success = true }, function()
             manageMenu:Close()
 
-            exports["pulsar-core"]:ServerCallback('Dealerships:UpdateDealershipData', {
+            plsr.Callbacks:ServerCallback('Dealerships:UpdateDealershipData', {
                 dealerId = dealer,
                 updating = updatingData,
             }, function(success)
                 if success then
-                    exports["pulsar-hud"]:Notification("success", 'Changes Saved Successfully', 2500, 'car-building')
+                    plsr.Notification:Success('Changes Saved Successfully', 2500, 'car')
                 else
-                    exports["pulsar-hud"]:Notification("error", 'Failed Saving Changes', 2500, 'car-building')
+                    plsr.Notification:Error('Failed Saving Changes', 2500, 'car')
                 end
             end)
         end)

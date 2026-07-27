@@ -1,153 +1,168 @@
 -- Dealership Sale Records
-exports('RecordsGet', function(dealership)
-    if _dealerships[dealership] then
-        local p = promise.new()
-        exports.oxmysql:execute('SELECT * FROM dealer_records WHERE dealership = ? ORDER BY time DESC LIMIT 100',
-            { dealership }, function(results)
-                if results then
-                    for i, record in ipairs(results) do
-                        if record.seller then
-                            record.seller = json.decode(record.seller)
-                        end
-                        if record.buyer then
-                            record.buyer = json.decode(record.buyer)
-                        end
-                        if record.vehicle then
-                            record.vehicle = json.decode(record.vehicle)
-                        end
-                        if record.price then
-                            record.salePrice = tonumber(record.price)
-                            record.price = nil
-                        end
-                        if record.commission then
-                            record.commission = tonumber(record.commission)
+
+local _dealerRecordsTableReady = false
+local function ensureDealerRecordsTable(callback)
+    if _dealerRecordsTableReady then
+        if callback then
+            callback()
+        end
+        return
+    end
+    plsr.Database:Query(
+        "CREATE TABLE IF NOT EXISTS `dealer_records` (`id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, `dealership` VARCHAR(191) NOT NULL, `time` BIGINT NOT NULL, `category` VARCHAR(191) NULL, `data` JSON NOT NULL, INDEX `idx_dealership_time` (`dealership`, `time`), INDEX `idx_dealership_category` (`dealership`, `category`))",
+        nil,
+        function()
+            plsr.Database:Query(
+                "CREATE TABLE IF NOT EXISTS `dealer_records_buybacks` (`id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, `dealership` VARCHAR(191) NOT NULL, `data` JSON NOT NULL, INDEX `idx_dealership` (`dealership`))",
+                nil,
+                function()
+                    _dealerRecordsTableReady = true
+                    if callback then
+                        callback()
+                    end
+                end
+            )
+        end
+    )
+end
+
+local function rowToRecord(row)
+    local ok, decoded = pcall(json.decode, row.data)
+    if not ok or type(decoded) ~= "table" then
+        return nil
+    end
+    decoded._id = row.id
+    return decoded
+end
+
+DEALERSHIPS.Records = {
+    Get = function(self, dealership)
+        if _dealerships[dealership] then
+            local p = promise.new()
+            ensureDealerRecordsTable(function()
+                plsr.Database:Query(
+                    "SELECT `id`, `data` FROM `dealer_records` WHERE `dealership` = ? ORDER BY `time` DESC LIMIT 100",
+                    { dealership },
+                    function(success, results)
+                        if success then
+                            local records = {}
+                            for k, row in ipairs(results) do
+                                local record = rowToRecord(row)
+                                if record then
+                                    table.insert(records, record)
+                                end
+                            end
+                            p:resolve(records)
+                        else
+                            p:resolve(false)
                         end
                     end
-                    p:resolve(results)
-                else
-                    p:resolve(false)
-                end
+                )
             end)
-        return Citizen.Await(p)
-    end
-    return false
-end)
-
-exports('RecordsGetPage', function(category, term, dealership, page, perPage)
-    if _dealerships[dealership] then
-        local p = promise.new()
-
-        local skip = 0
-        if page > 1 then
-            skip = perPage * (page - 1)
+            return Citizen.Await(p)
         end
+        return false
+    end,
+    GetPage = function(self, category, term, dealership, page, perPage)
+        if _dealerships[dealership] then
+            local p = promise.new()
 
-        local query = 'SELECT * FROM dealer_records WHERE dealership = ?'
-        local params = { dealership }
-
-        if category ~= "all" then
-            query = query .. ' AND JSON_EXTRACT(vehicle, "$.data.category") = ?'
-            table.insert(params, category)
-        end
-
-        if term and #term > 0 then
-            query = query ..
-                ' AND (JSON_EXTRACT(seller, "$.First") LIKE ? OR JSON_EXTRACT(seller, "$.Last") LIKE ? OR JSON_EXTRACT(buyer, "$.First") LIKE ? OR JSON_EXTRACT(buyer, "$.Last") LIKE ? OR JSON_EXTRACT(vehicle, "$.data.make") LIKE ? OR JSON_EXTRACT(vehicle, "$.data.model") LIKE ?)'
-            local searchTerm = '%' .. term .. '%'
-            for i = 1, 6 do
-                table.insert(params, searchTerm)
+            local skip = 0
+            if page > 1 then
+                skip = perPage * (page - 1)
             end
-        end
 
-        query = query .. ' ORDER BY time DESC LIMIT ? OFFSET ?'
-        table.insert(params, perPage + 1)
-        table.insert(params, skip)
+            local whereClauses = { "`dealership` = ?" }
+            local params = { dealership }
 
-        exports.oxmysql:execute(query, params, function(results)
-            if results then
-                for i, record in ipairs(results) do
-                    if record.seller then
-                        record.seller = json.decode(record.seller)
-                    end
-                    if record.buyer then
-                        record.buyer = json.decode(record.buyer)
-                    end
-                    if record.vehicle then
-                        record.vehicle = json.decode(record.vehicle)
-                    end
-                    if record.price then
-                        record.salePrice = tonumber(record.price)
-                        record.price = nil
-                    end
-                    if record.commission then
-                        record.commission = tonumber(record.commission)
-                    end
-                end
-
-                local more = false
-                if #results > perPage then
-                    more = true
-                    table.remove(results)
-                end
-
-                p:resolve({
-                    data = results,
-                    more = more,
-                })
-            else
-                p:resolve(false)
+            if #term > 0 then
+                local like = "%" .. term .. "%"
+                table.insert(
+                    whereClauses,
+                    "(CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.seller.First')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.seller.Last'))) LIKE ? "
+                        .. "OR CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.buyer.First')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.buyer.Last'))) LIKE ? "
+                        .. "OR CONCAT(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.vehicle.data.make')), ' ', JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.vehicle.data.model'))) LIKE ?)"
+                )
+                table.insert(params, like)
+                table.insert(params, like)
+                table.insert(params, like)
             end
-        end)
-        return Citizen.Await(p)
-    end
-    return false
-end)
 
-exports('RecordsCreate', function(dealership, document)
-    if type(document) == 'table' then
-        document.dealership = dealership
-        
-        local price = document.price or document.salePrice
-        local commission = document.commission
-        
-        local p = promise.new()
+            if category ~= "all" then
+                table.insert(whereClauses, "`category` = ?")
+                table.insert(params, category)
+            end
 
-        local sellerJson = document.seller and json.encode(document.seller) or nil
-        local buyerJson = document.buyer and json.encode(document.buyer) or nil
-        local vehicleJson = document.vehicle and json.encode(document.vehicle) or nil
+            table.insert(params, perPage + 1)
+            table.insert(params, skip)
 
-        exports.oxmysql:execute(
-            'INSERT INTO dealer_records (dealership, time, seller, buyer, vehicle, price, commission) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            { document.dealership, document.time, sellerJson, buyerJson, vehicleJson, price, commission },
-            function(result)
-                if result then
-                    p:resolve(true)
-                else
-                    p:resolve(false)
-                end
+            ensureDealerRecordsTable(function()
+                plsr.Database:Query(
+                    "SELECT `id`, `data` FROM `dealer_records` WHERE " .. table.concat(whereClauses, " AND ") .. " ORDER BY `time` DESC LIMIT ? OFFSET ?",
+                    params,
+                    function(success, results)
+                        if success then
+                            local records = {}
+                            for k, row in ipairs(results) do
+                                local record = rowToRecord(row)
+                                if record then
+                                    table.insert(records, record)
+                                end
+                            end
+
+                            local more = false
+                            if #records > perPage then
+                                more = true
+                                table.remove(records)
+                            end
+
+                            p:resolve({
+                                data = records,
+                                more = more,
+                            })
+                        else
+                            p:resolve(false)
+                        end
+                    end
+                )
             end)
-        return Citizen.Await(p)
-    end
-    return false
-end)
-
-exports('RecordsCreateBuyBack', function(dealership, document)
-    if type(document) == 'table' then
-        document.dealership = dealership
-        local p = promise.new()
-
-        local vehicleJson = document.vehicle and json.encode(document.vehicle) or nil
-        local previousOwnerJson = document.previousOwner and json.encode(document.previousOwner) or nil
-        local buyerJson = document.buyer and json.encode(document.buyer) or nil
-
-        exports.oxmysql:execute(
-            'INSERT INTO dealer_records_buybacks (dealership, time, vehicle, previousOwner, buyer) VALUES (?, ?, ?, ?, ?)',
-            { document.dealership, document.time, vehicleJson, previousOwnerJson, buyerJson },
-            function(insertId)
-                p:resolve(insertId and (type(insertId) == "number" and insertId > 0) or
-                    (type(insertId) == "table" and insertId.insertId and insertId.insertId > 0))
+            return Citizen.Await(p)
+        end
+        return false
+    end,
+    Create = function(self, dealership, document)
+        if type(document) == 'table' then
+            document.dealership = dealership
+            local p = promise.new()
+            local category = document.vehicle and document.vehicle.data and document.vehicle.data.category or nil
+            ensureDealerRecordsTable(function()
+                plsr.Database:Insert(
+                    "INSERT INTO `dealer_records` (`dealership`, `time`, `category`, `data`) VALUES (?, ?, ?, ?)",
+                    { dealership, document.time or os.time(), category, json.encode(document) },
+                    function(success, newId)
+                        p:resolve(success and newId ~= nil)
+                    end
+                )
             end)
-        return Citizen.Await(p)
-    end
-    return false
-end)
+            return Citizen.Await(p)
+        end
+        return false
+    end,
+    CreateBuyBack = function(self, dealership, document)
+        if type(document) == 'table' then
+            document.dealership = dealership
+            local p = promise.new()
+            ensureDealerRecordsTable(function()
+                plsr.Database:Insert(
+                    "INSERT INTO `dealer_records_buybacks` (`dealership`, `data`) VALUES (?, ?)",
+                    { dealership, json.encode(document) },
+                    function(success, newId)
+                        p:resolve(success and newId ~= nil)
+                    end
+                )
+            end)
+            return Citizen.Await(p)
+        end
+        return false
+    end,
+}

@@ -4,7 +4,6 @@ _fleetConfig = {
 		requiredPermission = "FLEET_MANAGEMENT",
 		jobName = "Police",
 		bankAccount = "police",
-        workplace = "lspd",
 		interactionPed = {
 			model = `s_f_y_cop_01`,
 			coords = vector3(447.019, -996.985, 29.690),

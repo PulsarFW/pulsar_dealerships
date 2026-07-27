@@ -3,18 +3,16 @@ _withinShowroom = false
 _withinCatalog = false
 
 _justBoughtBike = {}
+-- DEALERSHIPS = {}
 
-AddEventHandler('onClientResourceStart', function(resource)
-	if resource == GetCurrentResourceName() then
-		Wait(1000)
-		CreateDealerships()
+CreateThread(function()
+	CreateDealerships()
 
-		CreateRentalSpots()
-		CreateBikeStands()
-		CreateGovermentFleetShops()
+	CreateRentalSpots()
+	CreateBikeStands()
+	CreateGovermentFleetShops()
 
-		CreateDonorDealerships()
-	end
+	CreateDonorDealerships()
 end)
 
 RegisterNetEvent("Characters:Client:Spawn")
@@ -33,14 +31,17 @@ AddEventHandler("Characters:Client:Logout", function()
 	_justBoughtBike = {}
 end)
 
+-- AddEventHandler('Proxy:Shared:RegisterReady', function()
+--     exports['pulsar_core']:RegisterComponent('Dealerships', DEALERSHIPS)
+-- end)
+
 function CreatePolyzone(id, zone, data)
 	if zone.type == "poly" then
-		exports['pulsar-polyzone']:CreatePoly("dealerships_" .. id, zone.points, zone.options, data)
+		plsr.Polyzone.Create:Poly("dealerships_" .. id, zone.points, zone.options, data)
 	elseif zone.type == "box" then
-		exports['pulsar-polyzone']:CreateBox("dealerships_" .. id, zone.center, zone.length, zone.width, zone.options,
-			data)
+		plsr.Polyzone.Create:Box("dealerships_" .. id, zone.center, zone.length, zone.width, zone.options, data)
 	elseif zone.type == "circle" then
-		exports['pulsar-polyzone']:CreateCircle("dealerships_" .. id, zone.center, zone.radius, zone.options, data)
+		plsr.Polyzone.Create:Circle("dealerships_" .. id, zone.center, zone.radius, zone.options, data)
 	end
 end
 
@@ -79,47 +80,118 @@ function CreateDealerships()
 		-- Targets
 		if data.zones and #data.zones.employeeInteracts > 0 then
 			for k, v in ipairs(data.zones.employeeInteracts) do
-				exports.ox_target:addBoxZone({
-					id = string.format("dealership_%s_employee_%s", dealerId, k),
-					coords = v.center,
-					size = vector3(v.length, v.width, 2.0),
-					rotation = v.options.heading or 0,
-					debug = false,
-					minZ = v.options.minZ,
-					maxZ = v.options.maxZ,
-					options = {
+				plsr.Targeting.Zones:AddBox(
+					string.format("dealership_%s_employee_%s", dealerId, k),
+					"car",
+					v.center,
+					v.length,
+					v.width,
+					v.options,
+					{
 						{
-							icon = "fas fa-warehouse",
-							label = "Edit Showroom",
-							groups = { dealerId },
-							reqDuty = true,
-							onSelect = function()
-								TriggerEvent("Dealerships:Client:ShowroomManagement", { dealerId = dealerId })
-							end,
-							canInteract = function()
-								return exports['pulsar-jobs']:HasPermission("dealership_showroom")
-							end,
+							icon = "warehouse",
+							text = "Edit Showroom",
+							event = "Dealerships:Client:ShowroomManagement",
+							data = { dealerId = dealerId },
+							jobPerms = {
+								{
+									job = dealerId,
+									reqDuty = true,
+									permissionKey = "dealership_showroom",
+								},
+							},
+						},
+						-- {
+						--     icon = 'magnifying-glass-dollar',
+						--     text = 'Run Credit Check',
+						--     event = 'Dealerships:Client:StartRunningCredit',
+						--     data = { dealerId = dealerId },
+						--     jobPerms = {
+						--         {
+						--             job = dealerId,
+						--             reqDuty = true,
+						--             permissionKey = 'dealership_sell',
+						--         }
+						--     },
+						-- },
+						-- {
+						--     icon = 'file-invoice-dollar',
+						--     text = 'Sell Vehicle',
+						--     event = 'Dealerships:Client:OpenSales',
+						--     data = { dealerId = dealerId },
+						--     jobPerms = {
+						--         {
+						--             job = dealerId,
+						--             reqDuty = true,
+						--             permissionKey = 'dealership_sell',
+						--         }
+						--     },
+						-- },
+						-- {
+						--     icon = 'memo-pad',
+						--     text = 'View Stock',
+						--     event = 'Dealerships:Client:StockViewing',
+						--     data = { dealerId = dealerId },
+						--     jobPerms = {
+						--         {
+						--             job = dealerId,
+						--             reqDuty = true,
+						--             permissionKey = 'dealership_stock',
+						--         }
+						--     },
+						-- },
+						-- {
+						--     icon = 'pen-to-square',
+						--     text = 'Dealer Management',
+						--     event = 'Dealerships:Client:StartManagement',
+						--     data = { dealerId = dealerId },
+						--     jobPerms = {
+						--         {
+						--             job = dealerId,
+						--             reqDuty = true,
+						--             permissionKey = 'dealership_manage',
+						--         }
+						--     },
+						-- },
+						{
+							icon = "briefcase-clock",
+							text = "Go On Duty",
+							event = "Dealerships:Client:ToggleDuty",
+							data = { dealerId = dealerId, state = true },
+							jobPerms = {
+								{
+									job = dealerId,
+									reqOffDuty = true,
+								},
+							},
 						},
 						{
-							icon = "fas fa-clipboard-check",
-							label = "Go On Duty",
-							groups = { dealerId },
-							reqOffDuty = true,
-							onSelect = function()
-								TriggerEvent("Dealerships:Client:ToggleDuty", { dealerId = dealerId, state = true })
-							end,
+							icon = "briefcase-clock",
+							text = "Go Off Duty",
+							event = "Dealerships:Client:ToggleDuty",
+							data = { dealerId = dealerId, state = false },
+							jobPerms = {
+								{
+									job = dealerId,
+									reqDuty = true,
+								},
+							},
 						},
-						{
-							icon = "fas fa-clipboard",
-							label = "Go Off Duty",
-							groups = { dealerId },
-							reqDuty = true,
-							onSelect = function()
-								TriggerEvent("Dealerships:Client:ToggleDuty", { dealerId = dealerId, state = false })
-							end,
-						},
-					}
-				})
+						-- {
+						-- 	icon = "tablet-screen",
+						-- 	text = "Open Tablet",
+						-- 	event = "MDT:Client:Toggle",
+						-- 	data = {},
+						-- 	jobPerms = {
+						-- 		{
+						-- 			job = dealerId,
+						-- 			reqDuty = true,
+						-- 		},
+						-- 	},
+						-- },
+					},
+					3.5
+				)
 			end
 		end
 	end
@@ -128,7 +200,7 @@ end
 function CreateDealershipBlips()
 	for dealerId, data in pairs(_dealerships) do
 		if data.blip then
-			exports["pulsar-blips"]:Add(
+			plsr.Blips:Add(
 				"dealership_" .. dealerId,
 				data.name,
 				data.blip.coords,
@@ -147,7 +219,7 @@ AddEventHandler("Polyzone:Enter", function(id, point, insideZones, data)
 			SpawnShowroom(data.dealerId)
 		elseif data.type == "catalog" and _dealerships[data.dealerId] then
 			_withinCatalog = data.dealerId
-			exports['pulsar-hud']:ActionShow(
+			plsr.Action:Show(
 				"pdm",
 				"{keybind}primary_action{/keybind} View " .. _dealerships[data.dealerId].abbreviation .. " Catalog"
 			)
@@ -161,7 +233,7 @@ AddEventHandler("Polyzone:Exit", function(id, point, insideZones, data)
 			DeleteShowroom(data.dealerId)
 			_withinShowroom = false
 		elseif data.type == "catalog" then
-			exports['pulsar-hud']:ActionHide("pdm")
+			plsr.Action:Hide("pdm")
 			_withinCatalog = false
 			ForceCloseCatalog()
 		end
@@ -170,17 +242,17 @@ end)
 
 AddEventHandler("Keybinds:Client:KeyUp:primary_action", function()
 	if _withinCatalog then
-		exports['pulsar-hud']:ActionHide("pdm")
+		plsr.Action:Hide("pdm")
 		OpenCatalog(_withinCatalog)
 	end
 end)
 
-AddEventHandler("Dealerships:Client:ToggleDuty", function(data)
+AddEventHandler("Dealerships:Client:ToggleDuty", function(entityData, data)
 	if data and data.dealerId then
 		if data.state then
-			exports['pulsar-jobs']:DutyOn(data.dealerId)
+			plsr.Jobs.Duty:On(data.dealerId)
 		else
-			exports['pulsar-jobs']:DutyOff(data.dealerId)
+			plsr.Jobs.Duty:Off(data.dealerId)
 		end
 	end
 end)

@@ -2,16 +2,16 @@ AddEventHandler("Dealerships:Client:StartBuyback", function(entity, data)
     print(json.encode(entity))
 
     local vehNet = VehToNet(entity.entity)
-    local vehEnt = Entity(entity.entity)
+    local vehEnt = plsr.State.Entity(entity.entity)
 
-    exports["pulsar-core"]:ServerCallback("Dealerships:BuyBackStart", {
+    plsr.Callbacks:ServerCallback("Dealerships:BuyBackStart", {
         netId = vehNet,
-        dealerId = LocalPlayer.state.onDuty,
+        dealerId = plsr.State.flags.onDuty,
     }, function(success, data, strikes, price, strikeLoss)
         if success then
-            local dealerData = _dealerships[LocalPlayer.state.onDuty]
+            local dealerData = _dealerships[plsr.State.flags.onDuty]
 
-            exports['pulsar-hud']:ConfirmShow(
+            plsr.Confirm:Show(
                 string.format("Confirm %s Vehicle Buy Back", dealerData.abbreviation),
                 {
                     yes = "Dealerships:BuyBack:Confirm",
@@ -30,35 +30,34 @@ AddEventHandler("Dealerships:Client:StartBuyback", function(entity, data)
                     data.make or "Unknown",
                     data.model or "Unknown",
                     data.class or "?",
-                    vehEnt.state.RegisteredPlate,
-                    vehEnt.state.VIN,
+                    vehEnt.RegisteredPlate,
+                    vehEnt.VIN,
                     formatNumberToCurrency(price),
-                    strikes > 0 and
-                    string.format("<i>-$%s (%s Strikes)</i>", formatNumberToCurrency(strikeLoss), strikes) or ""
+                    strikes > 0 and string.format("<i>-$%s (%s Strikes)</i>", formatNumberToCurrency(strikeLoss), strikes) or ""
                 ),
                 {
                     netId = vehNet,
-                    dealerId = LocalPlayer.state.onDuty,
+                    dealerId = plsr.State.flags.onDuty,
                 },
                 "Deny",
                 "Confirm"
             )
         else
             if data then
-                exports["pulsar-hud"]:Notification("error", data)
+                plsr.Notification:Error(data)
             else
-                exports["pulsar-hud"]:Notification("error", "Unable to Start Vehicle Buy Back")
+                plsr.Notification:Error("Error")
             end
         end
     end)
 end)
 
 AddEventHandler("Dealerships:BuyBack:Confirm", function(data)
-    exports["pulsar-core"]:ServerCallback("Dealerships:BuyBack", data, function(success)
-
+    plsr.Callbacks:ServerCallback("Dealerships:BuyBack", data, function(success)
+        
     end)
 end)
 
 AddEventHandler("Dealerships:BuyBack:Deny", function(data)
-    exports["pulsar-hud"]:Notification("error", "Vehicle Buy Back Cancelled")
+    plsr.Notification:Error("Vehicle Buy Back Cancelled")
 end)

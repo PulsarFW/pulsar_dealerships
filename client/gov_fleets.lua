@@ -1,28 +1,30 @@
 function CreateGovermentFleetShops()
     for k, v in ipairs(_fleetConfig) do
         if v.interactionPed then
-            exports['pulsar-pedinteraction']:Add('gov_fleet_shop_' .. v.job, v.interactionPed.model,
-                v.interactionPed.coords,
-                v.interactionPed.heading, v.interactionPed.range, {
-                    {
-                        icon = 'fas fa-warehouse',
-                        text = 'Purchase Fleet Vehicles',
-                        groups = { v.job },
-                        permissionKey = v.requiredPermission,
-                        reqDuty = true,
-                        workplace = v.workplace,
-                        onSelect = function()
-                            TriggerEvent('FleetDealers:Client:Open', { shop = k })
-                        end,
-                    },
-                }, 'cars', v.interactionPed.scenario)
+            plsr.PedInteraction:Add('gov_fleet_shop_'.. v.job, v.interactionPed.model, v.interactionPed.coords, v.interactionPed.heading, v.interactionPed.range, {
+                {
+                    icon = 'cars',
+                    text = 'Purchase Fleet Vehicles',
+                    event = 'FleetDealers:Client:Open',
+                    data = { shop = k },
+                    jobPerms = {
+                        {
+                            job = v.job,
+                            permissionKey = v.requiredPermission,
+                            reqDuty = true,
+                            workplace = v.workplace,
+                        },
+                    }
+                },
+            }, 'cars', v.interactionPed.scenario)
         end
     end
 end
 
-AddEventHandler('FleetDealers:Client:Open', function(data)
+AddEventHandler('FleetDealers:Client:Open', function(entityData, data)
     if data and data.shop and _fleetConfig[data.shop] then
         local shopData = _fleetConfig[data.shop]
+
         local menuData = {
             main = {
                 label = string.format('Purchase a New %s Fleet Vehicle', shopData.jobName),
@@ -53,42 +55,39 @@ AddEventHandler('FleetDealers:Client:Open', function(data)
             for livery, liveryName in pairs(v.liveries) do
                 table.insert(menuData[vehicleSub].items, {
                     label = string.format('Purchase With %s Livery', liveryName),
-                    description = 'Price: $' .. formatNumberToCurrency(v.price),
+                    description = 'Price: $'.. formatNumberToCurrency(v.price),
                     event = 'FleetDealers:Client:ConfirmPurchase',
-                    data = { 
-                        jobName = shopData.jobName, 
-                        shop = data.shop, 
-                        vehicle = k, 
-                        livery = livery, 
-                        liveryName = liveryName, 
+                    data = {
+                        jobName = shopData.jobName,
+                        shop = data.shop,
+                        vehicle = k,
+                        livery = livery,
+                        liveryName = liveryName,
                         vehData = v,
-                        workplaceId = shopData.workplace or false,  
-                        qual = v.qual or false              
-                    },
+                        workplaceId = shopData.workplace or false,
+                        qual = v.qual or false },
                 })
             end
 
             table.insert(menuData.main.items, {
                 label = v.make .. ' ' .. v.model,
-                description = string.format('Fleet Price: $%s<br>Available Liveries: %s', formatNumberToCurrency(v.price),
-                    exports['pulsar-core']:UtilsGetTableLength(v.liveries)),
+                description = string.format('Fleet Price: $%s<br>Available Liveries: %s', formatNumberToCurrency(v.price), plsr.Utils:GetTableLength(v.liveries)),
                 submenu = vehicleSub,
             })
         end
 
-        exports['pulsar-hud']:ListMenuShow(menuData)
+        plsr.ListMenu:Show(menuData)
     end
 end)
 
 AddEventHandler('FleetDealers:Client:ConfirmPurchase', function(data)
-    exports['pulsar-hud']:ConfirmShow(
+    plsr.Confirm:Show(
         string.format('Confirm %s Fleet Purchase', data.jobName),
         {
             yes = 'FleetDealers:Client:Purchase',
             no = 'FleetDealers:Client:CancelPurchase',
         },
-        string.format('Please Confirm the Purchase of a %s %s (%s Livery) for $%s', data.vehData.make, data.vehData
-            .model, data.liveryName, formatNumberToCurrency(data.vehData.price)),
+        string.format('Please Confirm the Purchase of a %s %s (%s Livery) for $%s', data.vehData.make, data.vehData.model, data.liveryName, formatNumberToCurrency(data.vehData.price)),
         data
     )
 end)
