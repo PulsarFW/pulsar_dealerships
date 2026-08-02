@@ -305,7 +305,7 @@ function RegisterCallbacks()
     plsr.Callbacks:RegisterServerCallback('Dealerships:CheckPersonsCredit', function(source, data, cb)
         local char = plsr.Fetch:CharacterSource(source)
 
-        local stateId = math.tointeger(data.SID)
+        local stateId = math.tointeger(tonumber(data.SID))
 
         if data and data.dealerId and stateId and plsr.Jobs.Permissions:HasPermissionInJob(source, data.dealerId, 'dealership_sell') then
             local target = plsr.Fetch:SID(stateId)
